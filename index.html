@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ComunicaNotes | Gestão de Anotações & WhatsApp</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Overlay Mobile -->
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <!-- Menu Lateral -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-icon">📌</span>
+          <div>
+            <h1>ComunicaNotes</h1>
+            <small>Gestão & WhatsApp</small>
+          </div>
+        </div>
+        <button id="closeSidebarBtn" class="btn-icon mobile-only" aria-label="Fechar menu">✕</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span>📊</span> Painel & Anotações
+        </button>
+        <button class="nav-item" data-view="nova-anotacao" id="navNewNote">
+          <span>➕</span> Nova Anotação
+        </button>
+        <button class="nav-item" data-view="historico">
+          <span>🕒</span> Histórico de Envios
+        </button>
+        <button class="nav-item" data-view="categorias">
+          <span>🏷️</span> Categorias & Destinatários
+        </button>
+        <button class="nav-item" data-view="backup">
+          <span>💾</span> Backup & Dados (JSON)
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="local-badge">
+          <span class="dot-online"></span> Armazenamento Local Ativo
+        </div>
+        <p class="footer-note">Dados salvos exclusivamente no navegador (LocalStorage).</p>
+      </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="openSidebarBtn" class="btn-icon mobile-only" aria-label="Abrir menu">☰</button>
+          <h2 id="pageTitle">Painel Principal</h2>
+        </div>
+        <div class="topbar-actions">
+          <button id="btnQuickNew" class="btn btn-primary">
+            <span>+</span> Nova Anotação
+          </button>
+        </div>
+      </header>
+
+      <!-- TELA DE CONFIRMAÇÃO DE LEITURA (Quando acessada via parâmetro ?confirmar=ID) -->
+      <section id="view-confirmacao" class="view-section hidden">
+        <div class="confirmation-card">
+          <div class="conf-header">
+            <span class="conf-badge">🔔 Confirmação de Leitura</span>
+            <h2 id="confTitle">Carregando comunicado...</h2>
+          </div>
+
+          <div class="conf-meta" id="confMeta"></div>
+
+          <div class="conf-body">
+            <h4>Conteúdo do Comunicado:</h4>
+            <pre id="confContent" class="conf-text"></pre>
+          </div>
+
+          <div class="conf-notice">
+            <strong>ℹ️ Nota Técnica (Arquitetura Local):</strong> Como este sistema opera 100% no navegador sem servidor central, esta tela valida a confirmação de leitura localmente neste dispositivo/navegador através do identificador único do comunicado.
+          </div>
+
+          <div id="confActionArea" class="conf-actions">
+            <!-- Preenchido dinamicamente pelo JS -->
+          </div>
+
+          <div class="conf-footer">
+            <button id="btnBackToPanel" class="btn btn-outline">← Voltar ao Painel Principal</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 1: DASHBOARD & LISTAGEM -->
+      <section id="view-dashboard" class="view-section">
+        <!-- Cards de Indicadores (KPIs) -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Total de Anotações</span>
+              <strong class="kpi-value" id="kpiTotal">0</strong>
+            </div>
+            <div class="kpi-icon bg-blue">📝</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Compartilhados</span>
+              <strong class="kpi-value" id="kpiShared">0</strong>
+            </div>
+            <div class="kpi-icon bg-green">📲</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Leituras Confirmadas</span>
+              <strong class="kpi-value" id="kpiRead">0</strong>
+            </div>
+            <div class="kpi-icon bg-teal">✅</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Pendências de Leitura</span>
+              <strong class="kpi-value" id="kpiPending">0</strong>
+            </div>
+            <div class="kpi-icon bg-amber">⏳</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-info">
+              <span class="kpi-label">Anotações Urgentes</span>
+              <strong class="kpi-value" id="kpiUrgent">0</strong>
+            </div>
+            <div class="kpi-icon bg-red">🚨</div>
+          </div>
+        </div>
+
+        <!-- Barra de Pesquisa e Filtros -->
+        <div class="filter-panel">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="filterSearch" placeholder="Pesquisar por título, conteúdo ou ID..." />
+          </div>
+
+          <div class="filters-grid">
+            <select id="filterCategory" aria-label="Filtrar por Categoria">
+              <option value="">Todas as Categorias</option>
+            </select>
+
+            <select id="filterStatus" aria-label="Filtrar por Status">
+              <option value="">Todos os Status</option>
+              <option value="Rascunho">Rascunho</option>
+              <option value="Aguardando envio">Aguardando envio</option>
+              <option value="Compartilhado">Compartilhado</option>
+              <option value="Aguardando confirmação">Aguardando confirmação</option>
+              <option value="Lido">Lido</option>
+              <option value="Atrasado">Atrasado</option>
+            </select>
+
+            <input type="text" id="filterSystem" placeholder="Filtrar por Sistema/Setor..." />
+            <input type="text" id="filterRecipient" placeholder="Filtrar por Destinatário..." />
+            <input type="date" id="filterDate" aria-label="Filtrar por Data" />
+
+            <button id="btnClearFilters" class="btn btn-outline btn-sm">Limpar Filtros</button>
+          </div>
+        </div>
+
+        <!-- Grid de Cards de Anotações -->
+        <div id="notesGrid" class="notes-grid"></div>
+      </section>
+
+      <!-- VIEW 2: CADASTRO / EDIÇÃO DE ANOTAÇÃO -->
+      <section id="view-nova-anotacao" class="view-section hidden">
+        <div class="form-card">
+          <div class="form-header">
+            <h3 id="formTitle">Cadastrar Nova Anotação / Comunicado</h3>
+            <p>Preencha os dados abaixo para registrar e preparar o envio via WhatsApp.</p>
+          </div>
+
+          <form id="noteForm" novalidate>
+            <input type="hidden" id="noteId" />
+
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="noteTitle">Título da Anotação *</label>
+                <input type="text" id="noteTitle" required maxlength="120" placeholder="Ex: Manutenção Programada no Servidor" />
+              </div>
+
+              <div class="form-group flex-1">
+                <label for="noteCategory">Categoria *</label>
+                <select id="noteCategory" required></select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="noteCreatedAt">Data de Criação</label>
+                <input type="text" id="noteCreatedAt" readonly class="input-readonly" />
+              </div>
+
+              <div class="form-group">
+                <label for="noteDueDate">Data de Referência / Vencimento (Opcional)</label>
+                <input type="date" id="noteDueDate" />
+              </div>
+
+              <div class="form-group">
+                <label for="noteSystem">Sistema, Setor ou Departamento *</label>
+                <input type="text" id="noteSystem" required maxlength="80" placeholder="Ex: ERP / TI / Financeiro" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="noteRecipientSelect">Destinatário Salvo (Opcional)</label>
+                <select id="noteRecipientSelect">
+                  <option value="">-- Selecionar destinatário cadastrado --</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="noteRecipient">Nome do Destinatário ou Grupo WhatsApp *</label>
+                <input type="text" id="noteRecipient" required maxlength="80" placeholder="Ex: Grupo Operações ou João Silva" />
+              </div>
+
+              <div class="form-group">
+                <label for="notePhone">Telefone com DDI (Opcional - ex: 5511999999999)</label>
+                <input type="tel" id="notePhone" maxlength="20" placeholder="5511988887777 (Deixe vazio para grupo)" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="noteContent">Descrição ou Conteúdo da Mensagem *</label>
+              <textarea id="noteContent" rows="6" required placeholder="Escreva os detalhes do comunicado, orientações ou lembrete..."></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label for="noteObs">Observações Adicionais (Interno - Opcional)</label>
+                <input type="text" id="noteObs" maxlength="200" placeholder="Notas internas que não vão para a mensagem..." />
+              </div>
+
+              <div class="form-group flex-1">
+                <label for="noteInitialStatus">Status Inicial</label>
+                <select id="noteInitialStatus">
+                  <option value="Aguardando envio">Aguardando envio</option>
+                  <option value="Rascunho">Rascunho</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" id="btnCancelForm" class="btn btn-outline">Cancelar</button>
+              <button type="submit" class="btn btn-primary">💾 Salvar Anotação</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- VIEW 3: HISTÓRICO DE COMPARTILHAMENTOS -->
+      <section id="view-historico" class="view-section hidden">
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h3>Histórico Geral de Compartilhamentos</h3>
+              <p>Rastreamento de todos os envios realizados e status de confirmação.</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Data/Hora Envio</th>
+                  <th>ID Msg</th>
+                  <th>Título / Sistema</th>
+                  <th>Destinatário</th>
+                  <th>Status</th>
+                  <th>Confirmação</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: CATEGORIAS E DESTINATÁRIOS -->
+      <section id="view-categorias" class="view-section hidden">
+        <div class="two-col-grid">
+          <!-- Gerenciar Categorias -->
+          <div class="panel-card">
+            <h3>🏷️ Categorias Personalizáveis</h3>
+            <p class="text-muted">Crie categorias com cores para organizar seus comunicados.</p>
+
+            <form id="categoryForm" class="inline-form">
+              <input type="text" id="catName" placeholder="Nome da categoria" required maxlength="30" />
+              <input type="color" id="catColor" value="#2563eb" title="Cor da categoria" />
+              <button type="submit" class="btn btn-primary btn-sm">Adicionar</button>
+            </form>
+
+            <ul id="categoriesList" class="manage-list"></ul>
+          </div>
+
+          <!-- Gerenciar Destinatários -->
+          <div class="panel-card">
+            <h3>👥 Destinatários Frequentes</h3>
+            <p class="text-muted">Cadastre contatos ou grupos para preenchimento rápido.</p>
+
+            <form id="recipientForm" class="inline-form">
+              <input type="text" id="recName" placeholder="Nome / Grupo" required maxlength="60" />
+              <input type="tel" id="recPhone" placeholder="5511999999999 (Opcional)" maxlength="20" />
+              <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+            </form>
+
+            <ul id="recipientsList" class="manage-list"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: BACKUP E RESTAURAÇÃO JSON -->
+      <section id="view-backup" class="view-section hidden">
+        <div class="panel-card">
+          <h3>💾 Backup e Restauração de Dados (JSON)</h3>
+          <p class="text-muted">
+            Como o sistema utiliza exclusivamente o <strong>LocalStorage</strong> do seu navegador, recomendamos exportar backups regularmente para evitar perda de dados ao limpar o cache.
+          </p>
+
+          <div class="backup-grid">
+            <div class="backup-box">
+              <h4>📤 Exportar Dados</h4>
+              <p>Baixe um arquivo <code>.json</code> contendo todas as anotações, categorias, destinatários e históricos.</p>
+              <button id="btnExportJson" class="btn btn-primary">Baixar Backup JSON</button>
+            </div>
+
+            <div class="backup-box">
+              <h4>📥 Importar Dados</h4>
+              <p>Restaure um backup <code>.json</code> anterior. Os registros serão mesclados ou restaurados com validação.</p>
+              <input type="file" id="importJsonFile" accept=".json" class="file-input" />
+              <button id="btnImportJson" class="btn btn-outline">Importar Arquivo JSON</button>
+            </div>
+
+            <div class="backup-box danger-zone">
+              <h4>⚠️ Dados de Demonstração / Reset</h4>
+              <p>Carregue exemplos prontos para testar ou limpe todos os dados armazenados neste navegador.</p>
+              <div class="btn-group">
+                <button id="btnLoadDemo" class="btn btn-outline btn-sm">Carregar Exemplos</button>
+                <button id="btnResetAll" class="btn btn-danger btn-sm">Zerar Tudo</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL GENÉRICO (Visualização, Histórico Individual, Prévia WhatsApp) -->
+  <div id="appModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modalTitle">Detalhes</h3>
+        <button id="modalCloseBtn" class="btn-icon" aria-label="Fechar modal">✕</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalFooter" class="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- CONTAINER DE NOTIFICAÇÕES TOAST -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
